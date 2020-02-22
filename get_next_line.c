@@ -6,71 +6,75 @@
 /*   By: tuperera <tuperera@student.codam.nl>         +#+                     */
 /*                                                   +#+                      */
 /*   Created: 2019/11/06 11:03:17 by tuperera       #+#    #+#                */
-/*   Updated: 2019/11/18 13:39:47 by tuperera      ########   odam.nl         */
+/*   Updated: 2019/11/27 17:15:34 by tuperera      ########   odam.nl         */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "./get_next_line.h"
-#include <stdio.h>
 
-char	*ft_realloc(char *src, int len)
+static char		*populateret(char *line, char *ret, char **buffer)
 {
-	char	*res;
-	int		i;
+	size_t i;
 
 	i = 0;
-	res = malloc(sizeof(char) * len + BUFFER_SIZE);
-	while (i < len)
+	if (line != NULL)
 	{
-		res[i] = src[i];
+		while (line[i] != '\0')
+		{
+			ret[i] = line[i];
+			i++;
+		}
+		free(line);
+	}
+	while (**buffer != '\0' && **buffer != '\n')
+	{
+		ret[i] = **buffer;
+		(*buffer)++;
 		i++;
 	}
-	if (src)
-		free(src);
-	return (res);
+	ret[i] = '\0';
+	return (ret);
 }
 
-char	*ft_strncat(char *dest, char *src, int nb)
+static char		*join_line(char *line, char *buffer)
 {
-	int		i;
-	char	*resptr;
+	char	*ret;
+	char	*orig;
 
-	i = 0;
-	while (dest[i] != '\0')
-		i++;
-	resptr = dest + i;
-	i = 0;
-	while (i < nb)
-	{
-		*resptr = *src;
-		resptr++;
-		src++;
-		i++;
-	}
-	*resptr = '\0';
-	return (dest);
+	orig = buffer;
+	ret = (char *)malloc(ft_strlen(line) + ft_strlen(buffer) + 1);
+	if (ret == NULL)
+		return (NULL);
+	ret = populateret(line, ret, &buffer);
+	prep_buffer(buffer, orig);
+	return (ret);
 }
 
-int		get_next_line(int fd, char **line)
+int				get_next_line(int fd, char **line)
 {
-	static char	*buffer;
+	ssize_t		size;
+	static char buffer[BUFFER_SIZE + 1];
 	int			ret;
 
-	buffer = malloc(sizeof(char) * BUFFER_SIZE);
-	if (!buffer || !line || fd == -1)
-		return (-1);
-	if(!*line)
-        *line = malloc(100 * sizeof(char));
-
-    /* Blank out the line */
-    *line[0] = '\0';
-	ret = read(fd, buffer, BUFFER_SIZE);
-    while (ret > 0)
+	*line = NULL;
+	ret = 0;
+	while (ret == 0)
 	{
-		ret = read(fd, buffer, BUFFER_SIZE);
-        ft_strncat(*line, buffer, BUFFER_SIZE);
-        if(buffer[0] == '\n')
-            break;
-    }
-	return (0);
+		if (!*buffer)
+		{
+			size = read(fd, buffer, BUFFER_SIZE);
+			if (size <= 0)
+			{
+				buffer[0] = '\0';
+				ret = size;
+				*line = (ret == 0) ? join_line(*line, buffer) : NULL;
+				break ;
+			}
+			buffer[size] = '\0';
+		}
+		ret = (ft_isin(buffer) == 1) ? 1 : ret;
+		*line = join_line(*line, buffer);
+		ret = (*line == NULL) ? -1 : ret;
+	}
+	return (ret);
 }
